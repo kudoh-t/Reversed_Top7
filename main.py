@@ -2,7 +2,6 @@ import os
 import yfinance as yf
 import pandas as pd
 import requests
-import datetime as dt
 
 LINE_TOKEN = os.getenv("LINE_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
@@ -21,37 +20,70 @@ def send_line(message):
 
 def load_price(code):
     ticker = yf.Ticker(f"{code}.T")
-    df = ticker.history(period="20d")
+    df = ticker.history(period="30d")
     df = df.dropna()
     return df
 
-def reversed_signal(df):
+def load_market_indices():
+    tickers = {
+        "日経平均": "^N225",
+        "TOPIX": "^TOPX",
+        "USDJPY": "JPY=X",
+        "米10年金利": "^TNX",
+        "VIX": "^VIX"
+    }
+
+    results = {}
+    for name, symbol in tickers.items():
+        try:
+            df = yf.Ticker(symbol).history(period="2d")
+            if len(df) >= 2:
+                close = df["Close"].iloc[-1]
+                prev = df["Close"].iloc[-2]
+                change = (close - prev) / prev * 100
+                results[name] = f"{close:.2f} ({change:+.2f}%)"
+            else:
+                results[name] = "N/A"
+        except:
+            results[name] = "N/A"
+
+    return results
+
+def reversed_signal_with_score(df):
     if len(df) < 20:
-        return False
+        return 0, {}
+
+    reasons = {}
 
     # 1. 3日連続下落
     cond1 = all(df["Close"].iloc[-i] < df["Close"].iloc[-i-1] for i in range(1,4))
+    reasons["3日連続下落"] = cond1
 
-    # 2. 当日反転（始値 < 現在値）
+    # 2. 当日反転
     cond2 = df["Open"].iloc[-1] < df["Close"].iloc[-1]
+    reasons["当日反転"] = cond2
 
     # 3. 前日終値ブレイク
     cond3 = df["Close"].iloc[-1] > df["Close"].iloc[-2]
+    reasons["前日終値ブレイク"] = cond3
 
     # 4. 出来高 +20%
     cond4 = df["Volume"].iloc[-1] > df["Volume"].iloc[-2] * 1.2
+    reasons["出来高 +20%"] = cond4
 
     # 5. 5MA 上抜け
     ma5 = df["Close"].rolling(5).mean()
     cond5 = df["Close"].iloc[-1] > ma5.iloc[-1]
+    reasons["5MA 上抜け"] = cond5
 
-    # 6. RSI 30〜50 → 上抜け
+    # 6. RSI 50 上抜け
     delta = df["Close"].diff()
     gain = delta.clip(lower=0).rolling(14).mean()
     loss = -delta.clip(upper=0).rolling(14).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     cond6 = rsi.iloc[-2] < 50 and rsi.iloc[-1] > 50
+    reasons["RSI 50 上抜け"] = cond6
 
     # 7. MACD ゴールデンクロス
     ema12 = df["Close"].ewm(span=12).mean()
@@ -59,32 +91,56 @@ def reversed_signal(df):
     macd = ema12 - ema26
     signal = macd.ewm(span=9).mean()
     cond7 = macd.iloc[-2] < signal.iloc[-2] and macd.iloc[-1] > signal.iloc[-1]
+    reasons["MACD ゴールデンクロス"] = cond7
 
-    return all([cond1, cond2, cond3, cond4, cond5, cond6, cond7])
+    # スコア計算
+    score = (
+        cond1 * 20 +
+        cond2 * 20 +
+        cond3 * 15 +
+        cond4 * 15 +
+        cond5 * 10 +
+        cond6 * 10 +
+        cond7 * 10
+    )
+
+    return score, reasons
 
 def main():
     codes = [
-        "7011", "4828", "8316", "8306", "8331",
-        "4063", "6981", "1605", "6269", "1963",
-        "8591", "3003", "8001", "8058", "9432",
-        "9433", "5802", "8267", "4182", "1540",
-        "2638", "8593", "4894", "4369", "485A"
+        "7011","4828","8316","8306","8331",
+        "4063","6981","1605","6269","1963",
+        "8591","3003","8001","8058","9432",
+        "9433","5802","8267","4182","1540",
+        "2638","8593","4894","4369","485A"
     ]
 
-    hits = []
+    messages = []
+
     for code in codes:
         df = load_price(code)
         if df is None or df.empty:
             continue
-        if reversed_signal(df):
-            hits.append(code)
 
-    if hits:
-        msg = "🔥反転初動シグナル検出🔥\n" + "\n".join(hits)
+        score, reasons = reversed_signal_with_score(df)
+
+        if score >= 60:  # シグナル基準
+            msg = f"【{code}】\nスコア：{score}\n"
+            for k, v in reasons.items():
+                mark = "✓" if v else "✗"
+                msg += f"{mark} {k}\n"
+            messages.append(msg)
+
+    indices = load_market_indices()
+
+    if messages:
+        final_msg = "🔥反転初動シグナル🔥\n\n" + "\n".join(messages)
     else:
-        msg = "本日の反転初動シグナル：該当なし"
+        final_msg = "本日の反転初動シグナル：該当なし\n\n【指数】\n"
+        for k, v in indices.items():
+            final_msg += f"{k}: {v}\n"
 
-    send_line(msg)
+    send_line(final_msg)
 
 if __name__ == "__main__":
     main()
