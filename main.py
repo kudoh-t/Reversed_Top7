@@ -26,6 +26,9 @@ def load_price(code):
     return df
 
 def reversed_signal(df):
+    if len(df) < 20:
+        return False
+
     # 1. 3日連続下落
     cond1 = all(df["Close"].iloc[-i] < df["Close"].iloc[-i-1] for i in range(1,4))
 
@@ -60,37 +63,19 @@ def reversed_signal(df):
     return all([cond1, cond2, cond3, cond4, cond5, cond6, cond7])
 
 def main():
-     codes = [
-    "7011",  # 三菱重工
-    "4828",  # ビジネスエンジ
-    "8316",  # 三井住友FG
-    "8306",  # 三菱UFJ
-    "8331",  # 千葉銀行
-    "4063",  # 信越化学
-    "6981",  # 村田製作所
-    "1605",  # INPEX
-    "6269",  # 三井海洋
-    "1963",  # 日揮
-    "8591",  # オリックス
-    "3003",  # ヒューリック
-    "8001",  # 伊藤忠
-    "8058",  # 三菱商事
-    "9432",  # NTT
-    "9433",  # KDDI
-    "5802",  # 住友電工
-    "8267",  # イオン
-    "4182",  # 三菱ガス化学
-    "1540",  # 純金信託
-    "2638",  # ロボットETF
-    "8593",  # 三菱HCキャピタル
-    "4894",  # クオリプス
-    "4369",  # トリケミカル
-    "485A",  # パワーエックス（新コード）
+    codes = [
+        "7011", "4828", "8316", "8306", "8331",
+        "4063", "6981", "1605", "6269", "1963",
+        "8591", "3003", "8001", "8058", "9432",
+        "9433", "5802", "8267", "4182", "1540",
+        "2638", "8593", "4894", "4369", "485A"
     ]
 
     hits = []
     for code in codes:
         df = load_price(code)
+        if df is None or df.empty:
+            continue
         if reversed_signal(df):
             hits.append(code)
 
