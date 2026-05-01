@@ -28,11 +28,11 @@ NAMES = {
     "8267": "イオン",
     "4182": "三菱ケミカルG",
     "1540": "純金ETF",
-    "2638": "NASDAQ100 ETF",
+    "2638": "GXロボティックス&AI ETF",
     "8593": "三菱HCキャピタル",
     "4894": "クオリプス",
     "4369": "トリケミカル",
-    "485A": "ENEOS"
+    "485A": "パワーエックス"
 }
 
 def send_line(message):
@@ -135,6 +135,8 @@ def reversed_signal_with_score(df):
     return score, reasons
 
 def main():
+    from datetime import datetime
+
     codes = [
         "7011","4828","8316","8306","8331",
         "4063","6981","1605","6269","1963",
@@ -162,6 +164,9 @@ def main():
 
     indices = load_market_indices()
 
+    # ★ 日付を追加
+    today = datetime.now().strftime("%Y-%m-%d")
+
     if messages:
         final_msg = "🔥反転初動シグナル🔥\n\n" + "\n".join(messages)
     else:
@@ -169,7 +174,11 @@ def main():
         for k, v in indices.items():
             final_msg += f"{k}: {v}\n"
 
+    # ★ メッセージ先頭に日付を付与
+    final_msg = f"📅 {today}\n\n" + final_msg
+
     send_line(final_msg)
+
 
 if __name__ == "__main__":
     main()
