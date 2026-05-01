@@ -2,7 +2,7 @@ name: Daily Reversed Top7 Signal
 
 on:
   schedule:
-    - cron: "35 2 * * *"   # JST 11:35（UTC 02:35）
+    - cron: "40 2 * * *"  # JST 11:40（UTC 02:40）
   workflow_dispatch:
 
 jobs:
