@@ -6,6 +6,35 @@ import requests
 LINE_TOKEN = os.getenv("LINE_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
 
+# 銘柄名辞書
+NAMES = {
+    "7011": "三菱重工",
+    "4828": "ビジネスエンジニアリング",
+    "8316": "三井住友FG",
+    "8306": "三菱UFJ",
+    "8331": "千葉銀行",
+    "4063": "信越化学",
+    "6981": "村田製作所",
+    "1605": "INPEX",
+    "6269": "三井海洋開発",
+    "1963": "日揮HD",
+    "8591": "オリックス",
+    "3003": "ヒューリック",
+    "8001": "伊藤忠商事",
+    "8058": "三菱商事",
+    "9432": "NTT",
+    "9433": "KDDI",
+    "5802": "住友電工",
+    "8267": "イオン",
+    "4182": "三菱ケミカルG",
+    "1540": "純金ETF",
+    "2638": "NASDAQ100 ETF",
+    "8593": "三菱HCキャピタル",
+    "4894": "クオリプス",
+    "4369": "トリケミカル",
+    "485A": "ENEOS"
+}
+
 def send_line(message):
     url = "https://api.line.me/v2/bot/message/push"
     headers = {
@@ -93,7 +122,6 @@ def reversed_signal_with_score(df):
     cond7 = macd.iloc[-2] < signal.iloc[-2] and macd.iloc[-1] > signal.iloc[-1]
     reasons["MACD ゴールデンクロス"] = cond7
 
-    # スコア計算
     score = (
         cond1 * 20 +
         cond2 * 20 +
@@ -124,8 +152,9 @@ def main():
 
         score, reasons = reversed_signal_with_score(df)
 
-        if score >= 60:  # シグナル基準
-            msg = f"【{code}】\nスコア：{score}\n"
+        if score >= 60:
+            name = NAMES.get(code, "")
+            msg = f"【{code} {name}】\nスコア：{score}\n"
             for k, v in reasons.items():
                 mark = "✓" if v else "✗"
                 msg += f"{mark} {k}\n"
