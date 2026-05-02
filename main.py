@@ -2,6 +2,8 @@ import os
 import yfinance as yf
 import pandas as pd
 import requests
+import jpholiday
+from datetime import datetime
 
 LINE_TOKEN = os.getenv("LINE_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
@@ -135,7 +137,15 @@ def reversed_signal_with_score(df):
     return score, reasons
 
 def main():
-    from datetime import datetime
+    today = datetime.now()
+
+    # ★ 土日スキップ
+    if today.weekday() >= 5:
+        return
+
+    # ★ 日本の祝日スキップ
+    if jpholiday.is_holiday(today):
+        return
 
     codes = [
         "7011","4828","8316","8306","8331",
@@ -164,8 +174,7 @@ def main():
 
     indices = load_market_indices()
 
-    # ★ 日付を追加
-    today = datetime.now().strftime("%Y-%m-%d")
+    today_str = today.strftime("%Y-%m-%d")
 
     if messages:
         final_msg = "🔥反転初動シグナル🔥\n\n" + "\n".join(messages)
@@ -174,8 +183,7 @@ def main():
         for k, v in indices.items():
             final_msg += f"{k}: {v}\n"
 
-    # ★ メッセージ先頭に日付を付与
-    final_msg = f"📅 {today}\n\n" + final_msg
+    final_msg = f"📅 {today_str}\n\n" + final_msg
 
     send_line(final_msg)
 
