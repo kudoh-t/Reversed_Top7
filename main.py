@@ -86,28 +86,22 @@ def reversed_signal_with_score(df):
 
     reasons = {}
 
-    # 1. 3日連続下落
     cond1 = all(df["Close"].iloc[-i] < df["Close"].iloc[-i-1] for i in range(1,4))
     reasons["3日連続下落"] = cond1
 
-    # 2. 当日反転
     cond2 = df["Open"].iloc[-1] < df["Close"].iloc[-1]
     reasons["当日反転"] = cond2
 
-    # 3. 前日終値ブレイク
     cond3 = df["Close"].iloc[-1] > df["Close"].iloc[-2]
     reasons["前日終値ブレイク"] = cond3
 
-    # 4. 出来高 +20%
     cond4 = df["Volume"].iloc[-1] > df["Volume"].iloc[-2] * 1.2
     reasons["出来高 +20%"] = cond4
 
-    # 5. 5MA 上抜け
     ma5 = df["Close"].rolling(5).mean()
     cond5 = df["Close"].iloc[-1] > ma5.iloc[-1]
     reasons["5MA 上抜け"] = cond5
 
-    # 6. RSI 50 上抜け
     delta = df["Close"].diff()
     gain = delta.clip(lower=0).rolling(14).mean()
     loss = -delta.clip(upper=0).rolling(14).mean()
@@ -116,7 +110,6 @@ def reversed_signal_with_score(df):
     cond6 = rsi.iloc[-2] < 50 and rsi.iloc[-1] > 50
     reasons["RSI 50 上抜け"] = cond6
 
-    # 7. MACD ゴールデンクロス
     ema12 = df["Close"].ewm(span=12).mean()
     ema26 = df["Close"].ewm(span=26).mean()
     macd = ema12 - ema26
@@ -139,13 +132,16 @@ def reversed_signal_with_score(df):
 def main():
     today = datetime.now()
 
-    # ★ 土日スキップ
-    if today.weekday() >= 5:
-        return
+    # GitHub Actions のイベント種別を取得
+    event = os.getenv("GITHUB_EVENT_NAME", "")
+    is_manual = (event == "workflow_dispatch")
 
-    # ★ 日本の祝日スキップ
-    if jpholiday.is_holiday(today):
-        return
+    # ★ 自動実行（cron）の場合のみ、土日・祝日をスキップ
+    if not is_manual:
+        if today.weekday() >= 5:
+            return
+        if jpholiday.is_holiday(today):
+            return
 
     codes = [
         "7011","4828","8316","8306","8331",
